@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FAF5EC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="남산커피">
+<title>남산커피</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --cream: #FAF5EC;
+    --panel: #FFFFFF;
+    --espresso: #3A2A1E;
+    --espresso-soft: #6B5A4A;
+    --tan: #C79A5E;
+    --tan-deep: #A9793E;
+    --line: #E7DAC5;
+    --sage: #5F7D5C;
+    --sage-bg: #EAF1E8;
+    --rust: #A15A3E;
+    --rust-bg: #F6E9E3;
+    --hot: #B03A2E;
+    --hot-bg: #F5E3E0;
+    --ice: #1F618D;
+    --ice-bg: #E1EBF2;
+  }
+  * { box-sizing: border-box; -webkit-touch-callout: none; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--cream);
+    color: var(--espresso);
+    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    height: 100%;
+    touch-action: manipulation;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: calc(20px + env(safe-area-inset-top)) 16px 30px 16px;
+  }
+  header { text-align: center; padding: 10px 0 16px 0; }
+  header .mark { font-size: 13px; letter-spacing: 3px; color: var(--tan-deep); font-weight: 600; }
+  header h1 { font-family: Georgia, "Nanum Myeongjo", serif; font-size: 24px; margin: 4px 0 0 0; color: var(--espresso); font-weight: 700; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab-btn {
+    flex: 1; min-height: 42px; border-radius: 10px; border: 1.5px solid var(--line);
+    background: var(--panel); color: var(--espresso-soft); font-size: 14px; font-weight: 700;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .tab-btn.active { background: var(--espresso); border-color: var(--espresso); color: #fff; }
+
+  .menu-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .item { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .item-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 16px; font-weight: 700; color: var(--espresso); }
+  .item-price { font-size: 12px; color: var(--espresso-soft); margin-top: 1px; }
+
+  .temp-qty-row { display: flex; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .temp-qty-block { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 10px; }
+  .temp-qty-block.hot { background: var(--hot-bg); }
+  .temp-qty-block.ice { background: var(--ice-bg); }
+  .temp-qty-label { font-size: 12px; font-weight: 800; letter-spacing: 0.5px; }
+  .temp-qty-block.hot .temp-qty-label { color: var(--hot); }
+  .temp-qty-block.ice .temp-qty-label { color: var(--ice); }
+  .temp-qty-block .stepper button { background: #fff; }
+
+  .item-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .item-row.sub .sub-label { color: var(--tan-deep); font-size: 12.5px; }
+  .sub-label { font-size: 13px; font-weight: 600; color: var(--espresso); }
+  .sub-label small { font-weight: 500; color: var(--espresso-soft); }
+
+  .stepper { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+  .stepper button {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--cream); color: var(--espresso); font-size: 17px; line-height: 1;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .stepper.main button { width: 40px; height: 40px; font-size: 19px; }
+  .stepper button:active { background: var(--tan); color: #fff; }
+  .stepper .qty { width: 28px; text-align: center; font-size: 15px; font-weight: 700; }
+  .stepper.main .qty { width: 32px; font-size: 17px; }
+
+  .summary-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .summary-title { font-size: 13px; font-weight: 700; color: var(--espresso-soft); letter-spacing: 1px; margin-bottom: 10px; }
+  .receipt-header {
+    display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700;
+    color: var(--tan-deep); letter-spacing: 0.5px; padding-bottom: 6px; margin-bottom: 4px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .receipt-row {
+    display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--espresso);
+    padding: 5px 0; font-family: "SF Mono", "Consolas", monospace, -apple-system;
+    border-bottom: 1px dotted var(--line);
+  }
+  .receipt-row:last-child { border-bottom: none; }
+  .receipt-row.discount { color: var(--tan-deep); font-size: 12.5px; }
+  .rc-name { flex: 1; min-width: 0; font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif; }
+  .rc-qty { width: 32px; text-align: center; color: var(--espresso-soft); }
+  .rc-amount { width: 78px; text-align: right; font-weight: 700; }
+  .receipt-row.discount .rc-amount { font-weight: 600; }
+  .empty-note { font-size: 13px; color: var(--espresso-soft); padding: 4px 0 8px 0; }
+
+  .bottom-bar { position: sticky; bottom: 0; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(58,42,30,0.06); }
+  .bottom-inner { max-width: 480px; margin: 0 auto; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) 16px; }
+  .total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .total-label { font-size: 14px; color: var(--espresso-soft); }
+  .total-num { font-family: Georgia, "Nanum Myeongjo", serif; font-size: 30px; font-weight: 700; color: var(--espresso); }
+  .cash-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .cash-row input {
+    flex: 1; min-width: 0; min-height: 44px; font-size: 18px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--cream); color: var(--espresso); font-weight: 600;
+  }
+  .cash-row input:focus { outline: 2px solid var(--tan); border-color: var(--tan); }
+  .complete-btn {
+    min-width: 92px; padding: 0 14px; min-height: 44px; flex-shrink: 0; border-radius: 10px; border: 1px solid var(--sage);
+    background: var(--sage); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  }
+  .complete-btn:disabled { opacity: 0.6; }
+  .change-box { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--sage-bg); color: var(--sage); font-weight: 700; font-size: 15px; }
+  .change-box.negative { background: var(--rust-bg); color: var(--rust); }
+  .quick-cash { display: flex; gap: 6px; margin-bottom: 8px; }
+  .quick-cash button {
+    flex: 1; min-height: 40px; padding: 8px 0; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--cream); color: var(--espresso-soft); font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation;
+  }
+  .quick-cash button:active { background: var(--tan); color: #fff; border-color: var(--tan); }
+
+  /* history view */
+  .hist-summary { display: flex; gap: 10px; margin-bottom: 14px; }
+  .hist-summary-card { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+  .hist-summary-label { font-size: 11px; color: var(--espresso-soft); font-weight: 700; letter-spacing: 0.5px; }
+  .hist-summary-num { font-family: Georgia, "Nanum Myeongjo", serif; font-size: 20px; font-weight: 700; margin-top: 3px; color: var(--espresso); }
+  .hist-table-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  table.hist-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.hist-table th {
+    background: var(--tan); color: #fff; font-weight: 700; text-align: left; padding: 9px 8px;
+    position: sticky; top: 0; letter-spacing: 0.3px; font-size: 11px;
+  }
+  table.hist-table td { padding: 9px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  table.hist-table tr:nth-child(even) td { background: #FBF6EE; }
+  .hist-time { white-space: nowrap; color: var(--espresso-soft); font-family: "SF Mono", "Consolas", monospace; font-size: 11.5px; }
+  .hist-items { line-height: 1.5; }
+  .hist-total { white-space: nowrap; text-align: right; font-weight: 700; font-family: "SF Mono", "Consolas", monospace; }
+  .hist-scroll { overflow-x: auto; }
+  .hist-empty { padding: 30px 16px; text-align: center; color: var(--espresso-soft); font-size: 13px; }
+  .hist-status { font-size: 11px; color: var(--espresso-soft); text-align: center; margin-top: 10px; }
+  .clear-all-btn {
+    width: 100%; min-height: 40px; margin-bottom: 10px; border-radius: 10px; border: 1px solid var(--rust);
+    background: var(--rust-bg); color: var(--rust); font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  }
+  .row-delete-btn {
+    width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--cream);
+    color: var(--rust); font-size: 13px; line-height: 1; cursor: pointer; touch-action: manipulation;
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(58,42,30,0.45); z-index: 999;
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--panel); border-radius: 16px; padding: 22px 20px; max-width: 320px; width: 100%;
+    box-shadow: 0 10px 30px rgba(58,42,30,0.25);
+  }
+  .modal-msg { font-size: 15px; color: var(--espresso); line-height: 1.5; margin-bottom: 18px; white-space: pre-line; }
+  .modal-actions { display: flex; gap: 8px; }
+  .modal-btn {
+    flex: 1; min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  }
+  .modal-btn.cancel { border: 1px solid var(--line); background: var(--cream); color: var(--espresso-soft); }
+  .modal-btn.confirm { border: 1px solid var(--rust); background: var(--rust); color: #fff; }
+</style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <header>
+      <div class="mark">NAMSAN COFFEE</div>
+      <h1>남산커피</h1>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" type="button" data-tab="order">주문받기</button>
+      <button class="tab-btn" type="button" data-tab="history">주문내역</button>
+    </div>
+
+    <div id="orderView">
+      <div class="menu-list" id="menuList"></div>
+
+      <div class="summary-card">
+        <div class="summary-title">주문 내역</div>
+        <div id="orderLines"><div class="empty-note">메뉴를 선택해주세요</div></div>
+      </div>
+    </div>
+
+    <div id="historyView" style="display:none">
+      <div class="hist-summary">
+        <div class="hist-summary-card">
+          <div class="hist-summary-label">오늘 주문</div>
+          <div class="hist-summary-num" id="histCountToday">0건</div>
+        </div>
+        <div class="hist-summary-card">
+          <div class="hist-summary-label">오늘 매출</div>
+          <div class="hist-summary-num" id="histTotalToday">0원</div>
+        </div>
+      </div>
+      <button class="clear-all-btn" id="clearAllBtn" type="button">전체 삭제</button>
+      <div class="hist-table-wrap">
+        <div class="hist-scroll">
+          <table class="hist-table">
+            <thead>
+              <tr>
+                <th style="width:56px">시간</th>
+                <th>메뉴</th>
+                <th style="width:64px">합계</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="histBody"></tbody>
+          </table>
+        </div>
+        <div class="hist-empty" id="histEmpty" style="display:none">아직 주문 내역이 없어요</div>
+      </div>
+      <div class="hist-status" id="histStatus"></div>
+    </div>
+  </div>
+
+  <div class="bottom-bar" id="bottomBar">
+    <div class="bottom-inner">
+      <div class="total-row">
+        <span class="total-label">합계</span>
+        <span class="total-num" id="totalNum">0원</span>
+      </div>
+      <div class="quick-cash" id="quickCash"></div>
+      <div class="cash-row">
+        <input type="tel" inputmode="numeric" id="cashInput" placeholder="받은 금액 입력">
+        <button class="complete-btn" id="completeBtn" type="button">주문 완료</button>
+      </div>
+      <div class="change-box" id="changeBox">거스름돈 —</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <div class="modal-msg" id="modalMsg"></div>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn cancel" id="modalCancelBtn">취소</button>
+        <button type="button" class="modal-btn confirm" id="modalConfirmBtn">확인</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---------- Firebase (Realtime Database) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlrLFBrKqHSpEjHTDZ3Ln1ckXtEYSvOdk",
+    authDomain: "namsan-fdf5b.firebaseapp.com",
+    databaseURL: "https://namsan-fdf5b-default-rtdb.firebaseio.com",
+    projectId: "namsan-fdf5b",
+    storageBucket: "namsan-fdf5b.firebasestorage.app",
+    messagingSenderId: "418843228892",
+    appId: "1:418843228892:web:cd758291efb13140e5d219",
+  };
+  let ordersRef = null;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    ordersRef = firebase.database().ref('orders');
+  } catch (e) {
+    console.error('Firebase init failed', e);
+  }
+
+  const MENU = [
+    { id: 'esp', name: '에스프레소', price: 1500 },
+    { id: 'ame', name: '아메리카노', price: 1500 },
+    { id: 'lat', name: '카페라떼', price: 2000 },
+    { id: 'cap', name: '카푸치노', price: 2000 },
+    { id: 'van', name: '바닐라라떼', price: 2500 },
+    { id: 'esp-d', name: '디카페인 에스프레소', price: 2000 },
+    { id: 'ame-d', name: '디카페인 아메리카노', price: 2000 },
+    { id: 'lat-d', name: '디카페인 카페라떼', price: 2500 },
+    { id: 'cap-d', name: '디카페인 카푸치노', price: 2500 },
+    { id: 'van-d', name: '디카페인 바닐라라떼', price: 3000 },
+  ];
+  const TUMBLER_DISCOUNT = 500;
+  const QUICK_AMOUNTS = [2000, 5000, 10000];
+
+  const state = {};
+  MENU.forEach(m => state[m.id] = { hotQty: 0, iceQty: 0, tumbler: 0 });
+
+  const menuList = document.getElementById('menuList');
+  const orderLines = document.getElementById('orderLines');
+  const totalNum = document.getElementById('totalNum');
+  const cashInput = document.getElementById('cashInput');
+  const changeBox = document.getElementById('changeBox');
+  const quickCash = document.getElementById('quickCash');
+  const completeBtn = document.getElementById('completeBtn');
+  const wrapEl = document.getElementById('wrap');
+  const bottomBarEl = document.getElementById('bottomBar');
+
+  // ---------- custom modal ----------
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalMsg = document.getElementById('modalMsg');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+  function showConfirm(msg) {
+    return new Promise((resolve) => {
+      modalMsg.textContent = msg;
+      modalCancelBtn.style.display = '';
+      modalConfirmBtn.textContent = '확인';
+      modalOverlay.classList.add('open');
+      function onConfirm() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function cleanup(result) {
+        modalOverlay.classList.remove('open');
+        modalConfirmBtn.removeEventListener('click', onConfirm);
+        modalCancelBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      modalConfirmBtn.addEventListener('click', onConfirm);
+      modalCancelBtn.addEventListener('click', onCancel);
+    });
+  }
+
+  function showAlert(msg) {
+    return new Promise((resolve) => {
+      modalMsg.textContent = msg;
+      modalCancelBtn.style.display = 'none';
+      modalConfirmBtn.textContent = '확인';
+      modalOverlay.classList.add('open');
+      function onConfirm() {
+        modalOverlay.classList.remove('open');
+        modalConfirmBtn.removeEventListener('click', onConfirm);
+        resolve();
+      }
+      modalConfirmBtn.addEventListener('click', onConfirm);
+    });
+  }
+
+  function won(n) { return n.toLocaleString('ko-KR') + '원'; }
+  function totalQty(s) { return s.hotQty + s.iceQty; }
+  function clampAddon(s) {
+    const max = totalQty(s);
+    s.tumbler = Math.min(s.tumbler, max);
+  }
+
+  function renderMenu() {
+    menuList.innerHTML = '';
+    MENU.forEach(item => {
+      const s = state[item.id];
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `
+        <div class="item-top">
+          <div class="item-info">
+            <div class="item-name">${item.name}</div>
+            <div class="item-price">${won(item.price)}</div>
+          </div>
+        </div>
+        <div class="temp-qty-row">
+          <div class="temp-qty-block hot">
+            <span class="temp-qty-label">HOT</span>
+            <div class="stepper main">
+              <button type="button" data-id="${item.id}" data-field="hotQty" data-op="minus">−</button>
+              <span class="qty">${s.hotQty}</span>
+              <button type="button" data-id="${item.id}" data-field="hotQty" data-op="plus">+</button>
+            </div>
+          </div>
+          <div class="temp-qty-block ice">
+            <span class="temp-qty-label">ICE</span>
+            <div class="stepper main">
+              <button type="button" data-id="${item.id}" data-field="iceQty" data-op="minus">−</button>
+              <span class="qty">${s.iceQty}</span>
+              <button type="button" data-id="${item.id}" data-field="iceQty" data-op="plus">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="item-row sub">
+          <span class="sub-label">텀블러 할인 <small>(-${TUMBLER_DISCOUNT}원)</small></span>
+          <div class="stepper">
+            <button type="button" data-id="${item.id}" data-field="tumbler" data-op="minus">−</button>
+            <span class="qty">${s.tumbler}</span>
+            <button type="button" data-id="${item.id}" data-field="tumbler" data-op="plus">+</button>
+          </div>
+        </div>
+      `;
+      menuList.appendChild(row);
+    });
+
+    menuList.querySelectorAll('.stepper button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const field = btn.dataset.field;
+        const s = state[id];
+        if (btn.dataset.op === 'plus') {
+          s[field]++;
+        } else {
+          s[field] = Math.max(0, s[field] - 1);
+        }
+        if (field === 'hotQty' || field === 'iceQty') clampAddon(s);
+        renderAll();
+      });
+    });
+  }
+
+  function computeTotal() {
+    let total = 0;
+    const receipt = [];
+    MENU.forEach(item => {
+      const s = state[item.id];
+      if (s.hotQty > 0) {
+        const amount = item.price * s.hotQty;
+        total += amount;
+        receipt.push({ name: `${item.name} HOT`, qty: s.hotQty, amount });
+      }
+      if (s.iceQty > 0) {
+        const amount = item.price * s.iceQty;
+        total += amount;
+        receipt.push({ name: `${item.name} ICE`, qty: s.iceQty, amount });
+      }
+      if (s.tumbler > 0) {
+        const amount = -s.tumbler * TUMBLER_DISCOUNT;
+        total += amount;
+        receipt.push({ name: `└ 텀블러 할인`, qty: s.tumbler, amount, discount: true });
+      }
+    });
+    return { total, receipt };
+  }
+
+  function renderOrder() {
+    const { total, receipt } = computeTotal();
+    if (receipt.length === 0) {
+      orderLines.innerHTML = '<div class="empty-note">메뉴를 선택해주세요</div>';
+    } else {
+      const rows = receipt.map(l => `
+        <div class="receipt-row${l.discount ? ' discount' : ''}">
+          <span class="rc-name">${l.name}</span>
+          <span class="rc-qty">${l.qty}</span>
+          <span class="rc-amount">${l.amount < 0 ? '-' : ''}${won(Math.abs(l.amount))}</span>
+        </div>`).join('');
+      orderLines.innerHTML = `
+        <div class="receipt-header">
+          <span class="rc-name">메뉴</span>
+          <span class="rc-qty">수량</span>
+          <span class="rc-amount">금액</span>
+        </div>
+        ${rows}
+      `;
+    }
+    totalNum.textContent = won(total);
+    return total;
+  }
+
+  function renderChange(total) {
+    const cashVal = cashInput.value.replace(/[^0-9]/g, '');
+    if (cashVal === '') {
+      changeBox.textContent = '거스름돈 —';
+      changeBox.classList.remove('negative');
+      return;
+    }
+    const cash = parseInt(cashVal, 10);
+    const change = cash - total;
+    if (change < 0) {
+      changeBox.textContent = `금액 부족 ${won(Math.abs(change))}`;
+      changeBox.classList.add('negative');
+    } else {
+      changeBox.textContent = `거스름돈 ${won(change)}`;
+      changeBox.classList.remove('negative');
+    }
+  }
+
+  function renderAll() {
+    renderMenu();
+    const total = renderOrder();
+    renderChange(total);
+  }
+
+  function renderQuickCash() {
+    quickCash.innerHTML = '';
+    QUICK_AMOUNTS.forEach(amt => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = won(amt);
+      b.addEventListener('click', () => {
+        cashInput.value = amt;
+        renderAll();
+      });
+      quickCash.appendChild(b);
+    });
+    const exact = document.createElement('button');
+    exact.type = 'button';
+    exact.textContent = '정확히';
+    exact.addEventListener('click', () => {
+      const { total } = computeTotal();
+      cashInput.value = total;
+      renderAll();
+    });
+    quickCash.appendChild(exact);
+  }
+
+  cashInput.addEventListener('input', () => {
+    const { total } = computeTotal();
+    renderChange(total);
+  });
+
+  // ---------- persistence (Firebase Realtime Database) ----------
+  completeBtn.addEventListener('click', async () => {
+    const { total, receipt } = computeTotal();
+    if (receipt.length === 0) return;
+
+    const cashVal = cashInput.value.replace(/[^0-9]/g, '');
+    const cash = cashVal ? parseInt(cashVal, 10) : null;
+    const change = cash !== null ? cash - total : null;
+
+    completeBtn.disabled = true;
+    const originalLabel = completeBtn.textContent;
+    completeBtn.textContent = '저장 중...';
+
+    try {
+      if (!ordersRef) {
+        await showAlert('저장 기능을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+        completeBtn.disabled = false;
+        completeBtn.textContent = originalLabel;
+        return;
+      }
+      const now = new Date();
+      await ordersRef.push({
+        items: receipt.map(l => ({ name: l.name, qty: l.qty, amount: l.amount, discount: !!l.discount })),
+        total,
+        cash,
+        change,
+        ts: now.toISOString(),
+        tsMillis: now.getTime(),
+      });
+    } catch (e) {
+      await showAlert('저장에 실패했어요: ' + (e && e.message ? e.message : e));
+      completeBtn.disabled = false;
+      completeBtn.textContent = originalLabel;
+      return;
+    }
+
+    MENU.forEach(m => { state[m.id] = { hotQty: 0, iceQty: 0, tumbler: 0 }; });
+    cashInput.value = '';
+    renderAll();
+
+    completeBtn.textContent = '완료!';
+    setTimeout(() => {
+      completeBtn.disabled = false;
+      completeBtn.textContent = originalLabel;
+    }, 900);
+  });
+
+  // ---------- tabs ----------
+  const orderView = document.getElementById('orderView');
+  const historyView = document.getElementById('historyView');
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      if (tab === 'order') {
+        orderView.style.display = '';
+        historyView.style.display = 'none';
+        bottomBarEl.style.display = '';
+      } else {
+        orderView.style.display = 'none';
+        historyView.style.display = '';
+        bottomBarEl.style.display = 'none';
+      }
+    });
+  });
+
+  // ---------- history view ----------
+  const histBody = document.getElementById('histBody');
+  const histEmpty = document.getElementById('histEmpty');
+  const histCountToday = document.getElementById('histCountToday');
+  const histTotalToday = document.getElementById('histTotalToday');
+  const histStatus = document.getElementById('histStatus');
+
+  function summarizeItems(items) {
+    const main = items.filter(i => !i.discount).map(i => `${i.name} ×${i.qty}`);
+    const discounts = items.filter(i => i.discount);
+    let s = main.join(', ');
+    if (discounts.length) {
+      s += discounts.map(d => ` (텀블러 -${d.qty})`).join('');
+    }
+    return s;
+  }
+
+  function formatTime(tsMillis) {
+    const d = new Date(tsMillis);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  function isToday(tsMillis) {
+    const d = new Date(tsMillis);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  }
+
+  function renderHistory(docs) {
+    if (docs.length === 0) {
+      histBody.innerHTML = '';
+      histEmpty.style.display = '';
+    } else {
+      histEmpty.style.display = 'none';
+      histBody.innerHTML = docs.map(d => `
+        <tr>
+          <td class="hist-time">${formatTime(d.tsMillis)}</td>
+          <td class="hist-items">${summarizeItems(d.items || [])}</td>
+          <td class="hist-total">${won(d.total || 0)}</td>
+          <td><button type="button" class="row-delete-btn" data-doc-id="${d.id}">✕</button></td>
+        </tr>
+      `).join('');
+    }
+    const todayDocs = docs.filter(d => isToday(d.tsMillis));
+    histCountToday.textContent = todayDocs.length + '건';
+    histTotalToday.textContent = won(todayDocs.reduce((sum, d) => sum + (d.total || 0), 0));
+  }
+
+  histBody.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.row-delete-btn');
+    if (!btn) return;
+    const docId = btn.dataset.docId;
+    const ok = await showConfirm('이 주문 내역을 삭제할까요?');
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      if (!ordersRef) { await showAlert('삭제 기능을 불러오지 못했어요.'); btn.disabled = false; return; }
+      await ordersRef.child(docId).remove();
+    } catch (err) {
+      await showAlert('삭제에 실패했어요: ' + (err && err.message ? err.message : err));
+      btn.disabled = false;
+    }
+  });
+
+  const clearAllBtn = document.getElementById('clearAllBtn');
+  clearAllBtn.addEventListener('click', async () => {
+    const ok = await showConfirm('주문 내역을 전체 삭제할까요?\n되돌릴 수 없어요.');
+    if (!ok) return;
+    clearAllBtn.disabled = true;
+    const originalLabel = clearAllBtn.textContent;
+    clearAllBtn.textContent = '삭제 중...';
+    try {
+      if (!ordersRef) { await showAlert('삭제 기능을 불러오지 못했어요.'); return; }
+      await ordersRef.remove();
+    } catch (err) {
+      await showAlert('전체 삭제에 실패했어요: ' + (err && err.message ? err.message : err));
+    } finally {
+      clearAllBtn.disabled = false;
+      clearAllBtn.textContent = originalLabel;
+    }
+  });
+
+  if (ordersRef) {
+    ordersRef.orderByChild('tsMillis').limitToLast(300).on('value', (snapshot) => {
+      const docs = [];
+      snapshot.forEach((child) => {
+        docs.push({ id: child.key, ...child.val() });
+      });
+      docs.reverse();
+      renderHistory(docs);
+      histStatus.textContent = '';
+    }, (err) => {
+      histStatus.textContent = '실시간 업데이트에 문제가 있어요: ' + (err && err.message ? err.message : '');
+    });
+  } else {
+    histStatus.textContent = '내역을 불러오지 못했어요. 새로고침 해주세요.';
+  }
+
+  renderQuickCash();
+  renderAll();
+</script>
+</body>
+</html>
